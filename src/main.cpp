@@ -60,7 +60,7 @@ void loadTexture()
 	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	
 	int w, h, n;
-	void* data = stbi_load("../hypercube_texture.png", &w, &h, &n, 0);
+	void* data = stbi_load("../images/hypercube_texture.png", &w, &h, &n, 0);
 
 	glTexImage3D(GL_TEXTURE_3D, 0, GL_RGB, w, w, h / w, 0, GL_RGB,
 	             GL_UNSIGNED_BYTE, data);
@@ -73,7 +73,7 @@ void loadTexture()
 
 float angle1;
 float angle2;
-float angle3;
+float x_dist;
 
 void setUniforms()
 {
@@ -84,35 +84,23 @@ void setUniforms()
 	if(glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
 		angle2 += invert * 0.011;
 	if(glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-		angle3 += invert * 0.011;
-
-	/*
-	float x = glm::cos(angle1);
-	float y = glm::sin(angle1) * glm::cos(angle2);
-	float z = glm::sin(angle1) * glm::sin(angle2) * glm::cos(angle3);
-	float w = glm::sin(angle1) * glm::sin(angle2) * glm::sin(angle3);
-	*/
+		x_dist += invert * 0.111;
 
 	Transform view;
 	view.viewSpace(glm::dvec4(0, 1, 0, 0), glm::dvec4(0, 0, 1, 0), 
 	               glm::dvec4(0, 0, 0, 1));
-	/*
-	view.lookAt(glm::dvec4(0, 0, 0, -3), glm::dvec4(),
-	            glm::dvec4(0, 1, 0, 0), glm::dvec4(0, 0, 1, 0));
-				*/
 	view.lookAt(glm::dvec4(), glm::dvec4(0, 0, 0, 1),
 	            glm::dvec4(0, 1, 0, 0), glm::dvec4(0, 0, 1, 0));
 
 	Transform model;
-	model.translate(0, 0, 0, 25);
-	model.rotate(angle1, glm::dvec4(1, 0, 0, 0), glm::dvec4(0, 0, 0, 1));
-	model.rotate(angle2, glm::dvec4(0, 1, 0, 0), glm::dvec4(0, 0, 1, 0));
-	model.rotate(angle3, glm::dvec4(0, 1, 1, 0), glm::dvec4(1, 0, 0, 1));
+	model.translate(x_dist, 0, 0, 20);
+	model.rotate(angle1, glm::dvec4(1, 0, 1, 0), glm::dvec4(0, 1, 0, 1));
+	model.rotate(angle2, glm::dvec4(0, 1, 1, 0), glm::dvec4(1, 0, 0, 1));
 	model.scale(10, 10, 10, 10);
 
 	Transform model_view = view * model;
 
-	glm::mat4 projection = glm::perspective(45.0f, 1.33f, 0.1f, 100.0f);
+	glm::mat4 projection = glm::perspective(45.0f, 480 / 320.0f, 0.1f, 100.0f);
 
 	program->bind();
 
@@ -337,7 +325,7 @@ int main()
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
-	window = glfwCreateWindow(800, 600, "G4D Demo", nullptr, nullptr);
+	window = glfwCreateWindow(480, 320, "G4D Demo", nullptr, nullptr);
 	glfwMakeContextCurrent(window);
 
     gladLoadGLLoader((GLADloadproc) glfwGetProcAddress);
