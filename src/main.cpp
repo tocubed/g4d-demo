@@ -45,6 +45,8 @@ void initProgram()
 	assert(fragment.isCompiled());
 
 	program = std::make_unique<ShaderProgram>();
+	glBindAttribLocation(program->getId(), 0, "position");
+	glBindAttribLocation(program->getId(), 2, "texcoord");
 	program->link(vertex, geometry, fragment);
 	
 	assert(program->isLinked());
@@ -118,7 +120,6 @@ void setUniforms()
 }
 
 std::unique_ptr<Buffer> position_buffer;
-std::unique_ptr<Buffer> color_buffer;
 std::unique_ptr<Buffer> texcoord_buffer;
 std::unique_ptr<Buffer> index_buffer;
 
@@ -164,25 +165,6 @@ void initModel()
 		  0,  0,  0
 	};
 	
-	static const float colors[] = {
-		  0,  0,  0, 1,  
-		  0,  0,  1, 1, 
-		  0,  1,  0, 1, 
-		  0,  1,  1, 1, 
-		  1,  0,  0, 1, 
-		  1,  0,  1, 1, 
-		  1,  1,  0, 1, 
-		  1,  1,  1, 1, 
-		  0,  0,  0, 1,  
-		  0,  0,  1, 1, 
-		  0,  1,  0, 1, 
-		  0,  1,  1, 1, 
-		  1,  0,  0, 1, 
-		  1,  0,  1, 1, 
-		  1,  1,  0, 1, 
-		  1,  1,  1, 1  
-	};
-
 	static const unsigned int indices[] = {
 		9 , 13 , 14 , 15 ,
 		12 , 9 , 13 , 14 ,
@@ -247,9 +229,6 @@ void initModel()
 	position_buffer = std::make_unique<Buffer>(Buffer::Type::Vertex);
 	position_buffer->allocate(hypercube, 16 * 4 * sizeof(float));
 
-	color_buffer = std::make_unique<Buffer>(Buffer::Type::Vertex);
-	color_buffer->allocate(colors, 16 * 4 * sizeof(float));
-
 	texcoord_buffer = std::make_unique<Buffer>(Buffer::Type::Vertex);
 	texcoord_buffer->allocate(texcoords, 16 * 3 * sizeof(float));
 
@@ -264,18 +243,13 @@ void initModel()
 	VertexArray::AttributeLayout position_layout{
 	    0, 4, GL_FLOAT, GL_FALSE, 0, nullptr, false};
 
-	VertexArray::AttributeLayout color_layout{
-	    1, 4, GL_FLOAT, GL_FALSE, 0, nullptr, false};
-
 	VertexArray::AttributeLayout texcoord_layout{
 	    2, 3, GL_FLOAT, GL_FALSE, 0, nullptr, false};
 
 	hypercube_vertex_array->addAttributeBuffer(*position_buffer, position_layout);
-	hypercube_vertex_array->addAttributeBuffer(*color_buffer, color_layout);
 	hypercube_vertex_array->addAttributeBuffer(*texcoord_buffer, texcoord_layout);
 
 	hypercube_vertex_array->enableAttribute(0);
-	hypercube_vertex_array->enableAttribute(1);
 	hypercube_vertex_array->enableAttribute(2);
 
 	hypercube_vertex_array->release();
