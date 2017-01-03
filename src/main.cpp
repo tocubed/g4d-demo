@@ -1,7 +1,8 @@
-#include <g4d/Buffer.hpp>
+#include <g4d/Render/DisplayMesh.hpp>
+#include <g4d/Render/VertexLayout.hpp>
+#include <g4d/Render/GL/GLDisplayMesh.hpp>
 #include <g4d/ShaderProgram.hpp>
 #include <g4d/Transform.hpp>
-#include <g4d/VertexArray.hpp>
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -45,8 +46,10 @@ void initProgram()
 	assert(fragment.isCompiled());
 
 	program = std::make_unique<ShaderProgram>();
-	glBindAttribLocation(program->getId(), 0, "position");
-	glBindAttribLocation(program->getId(), 2, "texcoord");
+	glBindAttribLocation(program->getId(), (GLuint)VertexAttribute::Position, 
+			"position");
+	glBindAttribLocation(program->getId(), (GLuint)VertexAttribute::TexCoord, 
+			"texcoord");
 	program->link(vertex, geometry, fragment);
 	
 	assert(program->isLinked());
@@ -119,11 +122,16 @@ void setUniforms()
 	program->release();
 }
 
-std::unique_ptr<Buffer> position_buffer;
-std::unique_ptr<Buffer> texcoord_buffer;
-std::unique_ptr<Buffer> index_buffer;
+std::unique_ptr<DisplayMesh> display_mesh;
 
-std::unique_ptr<VertexArray> hypercube_vertex_array;
+struct Vertex
+{
+	float position[4];
+	float texcoord[3];
+
+	static VertexLayout vertex_layout;
+};
+VertexLayout Vertex::vertex_layout;
 
 void initModel()
 {
@@ -164,6 +172,21 @@ void initModel()
 		  0,  0,  1, 
 		  0,  0,  0
 	};
+
+	Vertex::vertex_layout
+		.setSize(sizeof(Vertex))
+		.add(VertexElement{offsetof(Vertex, position), VertexAttribute::Position,
+				VertexAttributeType::Float, 4, false, false})
+		.add(VertexElement{offsetof(Vertex, texcoord), VertexAttribute::TexCoord,
+				VertexAttributeType::Float, 3, false, false});
+
+	std::vector<Vertex> vertices;
+	for(std::size_t i = 0; i < 16; i++)
+	{
+		vertices.push_back(Vertex{
+			{hypercube[4*i], hypercube[4*i+1], hypercube[4*i+2], hypercube[4*i+3]},
+			{texcoords[3*i], texcoords[3*i+1], texcoords[3*i+2]}});
+	}
 	
 	static const unsigned int indices[] = {
 		9 , 13 , 14 , 15 ,
@@ -226,45 +249,20 @@ void initModel()
 		5 , 3 , 13 , 1
 	};
 
-	position_buffer = std::make_unique<Buffer>(Buffer::Type::Vertex);
-	position_buffer->allocate(hypercube, 16 * 4 * sizeof(float));
-
-	texcoord_buffer = std::make_unique<Buffer>(Buffer::Type::Vertex);
-	texcoord_buffer->allocate(texcoords, 16 * 3 * sizeof(float));
-
-	index_buffer = std::make_unique<Buffer>(Buffer::Type::Index);
-	index_buffer->allocate(indices, 58 * 4 * sizeof(unsigned int));
-
-	hypercube_vertex_array = std::make_unique<VertexArray>();
-
-	hypercube_vertex_array->bind();
-	index_buffer->bind();
-
-	VertexArray::AttributeLayout position_layout{
-	    0, 4, GL_FLOAT, GL_FALSE, 0, nullptr, false};
-
-	VertexArray::AttributeLayout texcoord_layout{
-	    2, 3, GL_FLOAT, GL_FALSE, 0, nullptr, false};
-
-	hypercube_vertex_array->addAttributeBuffer(*position_buffer, position_layout);
-	hypercube_vertex_array->addAttributeBuffer(*texcoord_buffer, texcoord_layout);
-
-	hypercube_vertex_array->enableAttribute(0);
-	hypercube_vertex_array->enableAttribute(2);
-
-	hypercube_vertex_array->release();
+	display_mesh = std::make_unique<GL::GLDisplayMesh>();
+	display_mesh->begin();
+	display_mesh->setVertexCount(16);
+	display_mesh->setIndexCount(58 * 4);
+	display_mesh->addVertices(&vertices[0]);
+	display_mesh->addIndices(indices);
+	display_mesh->end();
 }
 
 
 void drawModel()
 {
-	hypercube_vertex_array->bind();
 	glBindTexture(GL_TEXTURE_3D, texture);
-
-	glDrawElements(GL_LINES_ADJACENCY, 58 * 4, GL_UNSIGNED_INT, nullptr);
-
-	glBindTexture(GL_TEXTURE_3D, 0);
-	hypercube_vertex_array->release();
+	display_mesh->draw();
 }
 
 double last_time;
