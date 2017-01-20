@@ -61,7 +61,7 @@ void loadTexture()
 {
 	glGenTextures(1, &texture);
 	glBindTexture(GL_TEXTURE_3D, texture);
-	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	
 	int w, h, n;
@@ -80,7 +80,7 @@ float angle1;
 float angle2;
 float x_dist;
 
-void setUniforms()
+void handleInput()
 {
 	float invert = (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) ? -1.0 : 1.0;
 
@@ -89,25 +89,22 @@ void setUniforms()
 	if(glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
 		angle2 += invert * 0.011;
 	if(glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-		x_dist += invert * 0.111;
+		x_dist += invert * 0.011;
+}
 
-	Transform view;
+void setUniforms(Transform view = Transform(), Transform model = Transform())
+{
 	view.viewSpace(glm::dvec4(0, 1, 0, 0), glm::dvec4(0, 0, 1, 0), 
 	               glm::dvec4(0, 0, 0, 1));
-	view.lookAt(glm::dvec4(), glm::dvec4(0, 0, 0, 1),
+	view.lookAt(glm::dvec4(0, 0, 0, -4), glm::dvec4(0, 0, 0, 0),
 	            glm::dvec4(0, 1, 0, 0), glm::dvec4(0, 0, 1, 0));
-
-	Transform model;
-	model.translate(x_dist, 0, 0, 20);
-	model.rotate(angle1, glm::dvec4(1, 0, 1, 0), glm::dvec4(0, 1, 0, 1));
-	model.rotate(angle2, glm::dvec4(0, 1, 1, 0), glm::dvec4(1, 0, 0, 1));
-	model.scale(10, 10, 10, 10);
+	view.rotate(angle2, glm::dvec4(0, 1, 0, 0), glm::dvec4(0, 0, 1, 0));
+	view.rotate(angle1, glm::dvec4(0, 0, 1, 0), glm::dvec4(0, 0, 0, 1));
+	view.rotate(x_dist, glm::dvec4(1, 0, 0, 0), glm::dvec4(0, 0, 0, 1));
 
 	Transform model_view = view * model;
 
-	glm::mat4 projection = glm::perspective(45.0f, 480 / 320.0f, 0.1f, 100.0f);
-
-	program->bind();
+	glm::mat4 projection = glm::perspective(45.0f, 960 / 720.0f, 0.1f, 1000.0f);
 
 	glm::mat4 model_view_linear_map = model_view.getLinearMap();
 	glm::vec4 model_view_translation = model_view.getTranslation();
@@ -118,8 +115,6 @@ void setUniforms()
 	             1, glm::value_ptr(model_view_translation));
 	glUniformMatrix4fv(program->getUniformLocation("Projection"),
 	                   1, GL_FALSE, glm::value_ptr(projection));
-
-	program->release();
 }
 
 std::unique_ptr<DisplayMesh> display_mesh;
@@ -135,7 +130,7 @@ VertexLayout Vertex::vertex_layout;
 
 void initModel()
 {
-	std::ifstream model_file("../models/germa.m4d", std::ios::binary);
+	std::ifstream model_file("../models/cube.m4d", std::ios::binary);
 
 	std::vector<Vertex> vertices;
 	std::uint32_t vertex_count;
@@ -178,7 +173,31 @@ void initModel()
 void drawModel()
 {
 	glBindTexture(GL_TEXTURE_3D, texture);
-	display_mesh->draw();
+	for(unsigned int i = 0; i < 2; i++)
+	{
+	for(unsigned int j = 0; j < 2; j++)
+	{
+	for(unsigned int k = 0; k < 2; k++)
+	{
+	for(unsigned int l = 0; l < 2; l++)
+	{
+		Transform model;
+		model.rotate(x_dist*.73, glm::dvec4(1, 0, 0, 0), glm::dvec4(0, 1, 0, 0));
+		model.rotate(x_dist*.39, glm::dvec4(1, 0, 0, 0), glm::dvec4(0, 0, 1, 0));
+		model.rotate(x_dist*.97, glm::dvec4(1, 0, 0, 0), glm::dvec4(0, 0, 0, 1));
+        model.translate(1.1 * i, 1.1 * j,
+                        1.1 * k, 1.1 * l);
+
+		program->bind();
+
+        setUniforms(Transform(), model);
+		display_mesh->draw();
+
+		program->release();
+	}
+	}
+	}
+	}
 }
 
 double last_time;
@@ -232,16 +251,11 @@ int main()
     {
         glfwPollEvents();
 
-        glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+        glClearColor(0.529f, 0.808f, 0.98f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		setUniforms();
-
-		program->bind();
-
+		handleInput();
 		drawModel();
-
-		program->release();
 
         glfwSwapBuffers(window);
 		showFPS(window);
