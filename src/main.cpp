@@ -78,29 +78,28 @@ void loadTexture()
 
 float angle1;
 float angle2;
-float x_dist;
+float angle3;
 
 void handleInput()
 {
 	float invert = (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) ? -1.0 : 1.0;
 
 	if(glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-		angle1 += invert * 0.011;
+		angle1 += invert * 0.021;
 	if(glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-		angle2 += invert * 0.011;
+		angle2 += invert * 0.021;
 	if(glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-		x_dist += invert * 0.011;
+		angle3 += invert * 0.011;
 }
 
 void setUniforms(Transform view = Transform(), Transform model = Transform())
 {
 	view.viewSpace(glm::dvec4(0, 1, 0, 0), glm::dvec4(0, 0, 1, 0), 
 	               glm::dvec4(0, 0, 0, 1));
-	view.lookAt(glm::dvec4(0, 0, 0, -4), glm::dvec4(0, 0, 0, 0),
+	view.lookAt(glm::dvec4(1, 1, 1, -6), glm::dvec4(1, 1, 1, 0),
 	            glm::dvec4(0, 1, 0, 0), glm::dvec4(0, 0, 1, 0));
 	view.rotate(angle2, glm::dvec4(0, 1, 0, 0), glm::dvec4(0, 0, 1, 0));
 	view.rotate(angle1, glm::dvec4(0, 0, 1, 0), glm::dvec4(0, 0, 0, 1));
-	view.rotate(x_dist, glm::dvec4(1, 0, 0, 0), glm::dvec4(0, 0, 0, 1));
 
 	Transform model_view = view * model;
 
@@ -173,20 +172,20 @@ void initModel()
 void drawModel()
 {
 	glBindTexture(GL_TEXTURE_3D, texture);
-	for(unsigned int i = 0; i < 2; i++)
+	for(unsigned int i = 0; i < 3; i++)
 	{
-	for(unsigned int j = 0; j < 2; j++)
+	for(unsigned int j = 0; j < 3; j++)
 	{
-	for(unsigned int k = 0; k < 2; k++)
+	for(unsigned int k = 0; k < 3; k++)
 	{
-	for(unsigned int l = 0; l < 2; l++)
+	for(unsigned int l = 0; l < 3; l++)
 	{
 		Transform model;
-		model.rotate(x_dist*.73, glm::dvec4(1, 0, 0, 0), glm::dvec4(0, 1, 0, 0));
-		model.rotate(x_dist*.39, glm::dvec4(1, 0, 0, 0), glm::dvec4(0, 0, 1, 0));
-		model.rotate(x_dist*.97, glm::dvec4(1, 0, 0, 0), glm::dvec4(0, 0, 0, 1));
-        model.translate(1.1 * i, 1.1 * j,
-                        1.1 * k, 1.1 * l);
+		model.rotate(angle3*.73, glm::dvec4(1, 0, 0, 0), glm::dvec4(0, 1, 0, 0));
+		model.rotate(angle3*.39, glm::dvec4(1, 0, 0, 0), glm::dvec4(0, 0, 1, 0));
+		model.rotate(angle3*.97, glm::dvec4(1, 0, 0, 0), glm::dvec4(0, 0, 0, 1));
+        model.translate(1.25 * i, 1.25 * j,
+                        1.25 * k, 1.25 * l);
 
 		program->bind();
 
