@@ -1,23 +1,30 @@
-# G4D
+# g4d-demo
 
-G4D is an efficient rendering engine for displaying 3D cross-sections of 
-4D geometry, using a unique GPU pipeline for real-time performance. 
-
-G4D is currently closed source, and this repository is only meant to 
-showcase G4D's capabilities. This means you will not be able to compile 
-or run any binaries from this repository unless G4D is made public. 
+This a proof-of-concept demo for rendering 3D cross-sections of 4D geometry 
+in real-time using the GPU.
 
 ## Demo
 ![Demo](/images/demo.gif)
 
-Cross-sections of a 3x3x3x3 arrangement of hypercubes. The texture is meant to 
-reflect the iconic grass block from the popular video game, Minecraft.
+Cross-sections of a 3x3x3x3 arrangement of hypercubes. The texture is a dirt 
+cube with grass growing on top, resembling the iconic block from Minecraft.
 
-In the same manner that slicing a 3D object results in a 2D cross-section, 
-G4D slices each 4D object and computes the shape of the corresponding 3D 
-cross-section. As the above arrangement of hypercubes is rotated, different 3D
-slices of each hypercube become visible. 
+For a good analogy of cross-sectional rendering, imagine slicing a 3D cube with a 2D plane. 
+If you slice it parallel to one of its faces, you will get a perfect square as the cross-section. 
+However, if you slice it at an arbitrary angle, you might get a triangle, quadrilateral, 
+or a hexagon. Similarly, in four-dimensions, if you slice a 4D hypercube with a 3D hyperplane,
+you will get various solid 3D shapes for the cross-sections.
 
-Additionally, the surface of each slice is textured by taking 2D slices 
-of a 3D volume texture. The texture used in this demo can be seen, 
-in flattened form, [here](/images/hypercube_texture.png).
+As the above arrangement of hybercubes is rotated in 4D space, different 3D sections of 
+each hypercube become visible. Additionally, the surface of each slice is textured 
+using 2D slices of a 3D volume texture. The texture used in this demo can be seen, 
+in flattened (2D) form, [here](/images/hypercube_texture.png).
+
+## Building and Running
+When cloning, there are several submodules in `deps/` that must also be cloned. After that, just
+```
+mkdir build && cd build
+cmake .. && make
+``` 
+and the project should build. The resulting binary must be run from within the `build` directory, as
+the shaders and textures are loaded from file and the paths are currently hard-coded.
