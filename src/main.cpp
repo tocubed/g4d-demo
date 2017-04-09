@@ -19,105 +19,15 @@
 
 using namespace g4d;
 
+
+/* Global resources */
 GLFWwindow* window;
-
-std::string readFile(const char* name)
-{
-	std::ifstream ifs(name);
-
-	return std::string(
-	    std::istreambuf_iterator<char>(ifs), std::istreambuf_iterator<char>());
-}
-
+std::unique_ptr<DisplayMesh> model;
 std::unique_ptr<ShaderProgram> program;
-
-void initProgram()
-{
-	Shader vertex(Shader::Type::Vertex);
-	Shader geometry(Shader::Type::Geometry);
-	Shader fragment(Shader::Type::Fragment);
-
-	vertex.compile(readFile("../deps/g4d/shaders/textured/vert.glsl"));
-	geometry.compile(readFile("../deps/g4d/shaders/textured/geom.glsl"));
-	fragment.compile(readFile("../deps/g4d/shaders/textured/frag.glsl"));
-
-	assert(vertex.isCompiled());
-	assert(geometry.isCompiled());
-	assert(fragment.isCompiled());
-
-	program = std::make_unique<ShaderProgram>();
-	glBindAttribLocation(program->getId(), (GLuint)VertexAttribute::Position, 
-			"position");
-	glBindAttribLocation(program->getId(), (GLuint)VertexAttribute::TexCoord, 
-			"texcoord");
-	program->link(vertex, geometry, fragment);
-	
-	assert(program->isLinked());
-}
-
 GLuint texture;
 
-void loadTexture()
-{
-	glGenTextures(1, &texture);
-	glBindTexture(GL_TEXTURE_3D, texture);
-	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-	
-	int w, h, n;
-	void* data = stbi_load("../images/hypercube_texture.png", &w, &h, &n, 0);
 
-	glTexImage3D(GL_TEXTURE_3D, 0, GL_RGB, w, w, h / w, 0, GL_RGB,
-	             GL_UNSIGNED_BYTE, data);
-	glGenerateMipmap(GL_TEXTURE_3D);
-	
-	stbi_image_free(data);
-
-	glBindTexture(GL_TEXTURE_3D, 0);
-}
-
-float angle1;
-float angle2;
-float angle3;
-
-void handleInput()
-{
-	float invert = (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) ? -1.0 : 1.0;
-
-	if(glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-		angle1 += invert * 0.021;
-	if(glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-		angle2 += invert * 0.021;
-	if(glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-		angle3 += invert * 0.011;
-}
-
-void setUniforms(Transform view = Transform(), Transform model = Transform())
-{
-	view.viewSpace(glm::dvec4(0, 1, 0, 0), glm::dvec4(0, 0, 1, 0), 
-	               glm::dvec4(0, 0, 0, 1));
-	view.lookAt(glm::dvec4(1, 1, 1, -6), glm::dvec4(1, 1, 1, 0),
-	            glm::dvec4(0, 1, 0, 0), glm::dvec4(0, 0, 1, 0));
-	view.rotate(angle2, glm::dvec4(0, 1, 0, 0), glm::dvec4(0, 0, 1, 0));
-	view.rotate(angle1, glm::dvec4(0, 0, 1, 0), glm::dvec4(0, 0, 0, 1));
-
-	Transform model_view = view * model;
-
-	glm::mat4 projection = glm::perspective(45.0f, 960 / 720.0f, 0.1f, 1000.0f);
-
-	glm::mat4 model_view_linear_map = model_view.getLinearMap();
-	glm::vec4 model_view_translation = model_view.getTranslation();
-
-	glUniformMatrix4fv(program->getUniformLocation("ModelViewLinearMap"),
-	                   1, GL_FALSE, glm::value_ptr(model_view_linear_map));
-	glUniform4fv(program->getUniformLocation("ModelViewTranslation"),
-	             1, glm::value_ptr(model_view_translation));
-	glUniformMatrix4fv(program->getUniformLocation("Projection"),
-	                   1, GL_FALSE, glm::value_ptr(projection));
-}
-
-std::unique_ptr<DisplayMesh> display_mesh;
-
+/* Layout of a vertex in CPU/GPU memory */
 struct Vertex
 {
 	float position[4];
@@ -127,7 +37,8 @@ struct Vertex
 };
 VertexLayout Vertex::vertex_layout;
 
-void initModel()
+/* Load 4D model with above vertex layout */
+void loadModel()
 {
 	std::ifstream model_file("../models/cube.m4d", std::ios::binary);
 
@@ -152,60 +63,151 @@ void initModel()
 	model_file.read(reinterpret_cast<char*>(&indices[0]), 4 * index_count);
 	std::cout << index_count << " indices\n";
 
-	Vertex::vertex_layout
-		.setSize(sizeof(Vertex))
-		.add(VertexElement{offsetof(Vertex, position), VertexAttribute::Position,
-				VertexAttributeType::Float, 4, false, false})
-		.add(VertexElement{offsetof(Vertex, texcoord), VertexAttribute::TexCoord,
-				VertexAttributeType::Float, 3, false, false});
+	Vertex::vertex_layout.setSize(sizeof(Vertex))
+		.add(VertexElement{offsetof(Vertex, position), VertexAttribute::Position, VertexAttributeType::Float, 4, false, false})
+		.add(VertexElement{offsetof(Vertex, texcoord), VertexAttribute::TexCoord, VertexAttributeType::Float, 3, false, false});
 
-	display_mesh = std::make_unique<GL::GLDisplayMesh>();
-	display_mesh->begin();
-	display_mesh->setVertexCount(vertex_count);
-	display_mesh->setIndexCount(index_count);
-	display_mesh->addVertices(&vertices[0]);
-	display_mesh->addIndices(&indices[0]);
-	display_mesh->end();
+	model = std::make_unique<GL::GLDisplayMesh>();
+	model->begin();
+	model->setVertexCount(vertex_count);
+	model->setIndexCount(index_count);
+	model->addVertices(&vertices[0]);
+	model->addIndices(&indices[0]);
+	model->end();
 }
 
 
+/* Read a file directly into a std::string */
+std::string readFile(const char* name)
+{
+	std::ifstream ifs(name);
+	return std::string(std::istreambuf_iterator<char>(ifs), std::istreambuf_iterator<char>());
+}
+
+/* Load 4D rendering shaders */
+void loadProgram()
+{
+	Shader vertex(Shader::Type::Vertex);
+	Shader geometry(Shader::Type::Geometry);
+	Shader fragment(Shader::Type::Fragment);
+
+	vertex.compile(readFile("../deps/g4d/shaders/textured/vert.glsl"));
+	geometry.compile(readFile("../deps/g4d/shaders/textured/geom.glsl"));
+	fragment.compile(readFile("../deps/g4d/shaders/textured/frag.glsl"));
+
+	assert(vertex.isCompiled());
+	assert(geometry.isCompiled());
+	assert(fragment.isCompiled());
+
+	program = std::make_unique<ShaderProgram>();
+	glBindAttribLocation(program->getId(), (GLuint)VertexAttribute::Position, "position");
+	glBindAttribLocation(program->getId(), (GLuint)VertexAttribute::TexCoord, "texcoord");
+	program->link(vertex, geometry, fragment);
+	
+	assert(program->isLinked());
+}
+
+
+/* Load 3D volume texture */
+void loadTexture()
+{
+	glGenTextures(1, &texture);
+	glBindTexture(GL_TEXTURE_3D, texture);
+	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	
+	int w, h, n;
+	void* data = stbi_load("../images/hypercube_texture.png", &w, &h, &n, 4);
+
+	glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA, w, w, h / w, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+	glGenerateMipmap(GL_TEXTURE_3D);
+	
+	stbi_image_free(data);
+
+	glBindTexture(GL_TEXTURE_3D, 0);
+}
+
+
+/* Values which update every frame for animation purposes */
+float angle1 = 0.0;
+float angle2 = 0.0;
+float angle3 = 0.0;
+
+void updateAnimation()
+{
+	float invert = (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) ? -1.0 : 1.0;
+
+	angle1 += invert * 0.007;
+	angle2 += invert * 0.003;
+	angle3 += invert * 0.011;
+}
+
+
+/* 4D view transform */
+Transform getViewTransform()
+{
+	Transform view;
+
+	view.viewSpace(glm::dvec4(0, 1, 0, 0), glm::dvec4(0, 0, 1, 0), glm::dvec4(0, 0, 0, 1));
+	view.lookAt(glm::dvec4(1, 1, 1, 8), glm::dvec4(1, 1, 1, 0), glm::dvec4(0, 1, 0, 0), glm::dvec4(0, 0, 1, 0));
+	view.rotate(angle1, glm::dvec4(0, 0, 1, 0), glm::dvec4(0, 0, 0, 1));
+	view.rotate(angle2, glm::dvec4(0, 1, 0, 0), glm::dvec4(0, 0, 1, 0));
+	
+	return view;
+}
+
+/* Set view-model and projection uniforms */
+void setUniforms(Transform view, Transform model)
+{
+	Transform model_view = view * model;
+
+	glm::mat4 model_view_linear_map = model_view.getLinearMap();
+	glm::vec4 model_view_translation = model_view.getTranslation();
+	glUniformMatrix4fv(program->getUniformLocation("ModelViewLinearMap"), 1, GL_FALSE, glm::value_ptr(model_view_linear_map));
+	glUniform4fv(program->getUniformLocation("ModelViewTranslation"), 1, glm::value_ptr(model_view_translation));
+
+	glm::mat4 projection = glm::perspective(45.0f, 960 / 720.0f, 0.1f, 1000.0f);
+	glUniformMatrix4fv(program->getUniformLocation("Projection"), 1, GL_FALSE, glm::value_ptr(projection));
+}
+
+
+/* Draw a 3x3x3x3 arrangement of hypercubes */
 void drawModel()
 {
 	glBindTexture(GL_TEXTURE_3D, texture);
+	program->bind();
+
 	for(unsigned int i = 0; i < 3; i++)
 	{
-	for(unsigned int j = 0; j < 3; j++)
-	{
-	for(unsigned int k = 0; k < 3; k++)
-	{
-	for(unsigned int l = 0; l < 3; l++)
-	{
-		Transform model;
-		model.rotate(angle3*.73, glm::dvec4(1, 0, 0, 0), glm::dvec4(0, 1, 0, 0));
-		model.rotate(angle3*.39, glm::dvec4(1, 0, 0, 0), glm::dvec4(0, 0, 1, 0));
-		model.rotate(angle3*.97, glm::dvec4(1, 0, 0, 0), glm::dvec4(0, 0, 0, 1));
-        model.translate(1.25 * i, 1.25 * j,
-                        1.25 * k, 1.25 * l);
+		for(unsigned int j = 0; j < 3; j++)
+		{
+			for(unsigned int k = 0; k < 3; k++)
+			{
+				for(unsigned int l = 0; l < 3; l++)
+				{
+					Transform model_transform;
+					model_transform.rotate(angle3*.73, glm::dvec4(1, 0, 0, 0), glm::dvec4(0, 1, 0, 0));
+					model_transform.rotate(angle3*.39, glm::dvec4(1, 0, 0, 0), glm::dvec4(0, 0, 1, 0));
+					model_transform.rotate(angle3*.97, glm::dvec4(1, 0, 0, 0), glm::dvec4(0, 0, 0, 1));
+					model_transform.translate(1.2 * i, 1.2 * j, 1.2 * k, 1.2 * l);
 
-		program->bind();
-
-        setUniforms(Transform(), model);
-		display_mesh->draw();
-
-		program->release();
-	}
-	}
-	}
+					setUniforms(getViewTransform(), model_transform);
+					model->draw();
+				}
+			}
+		}
 	}
 }
 
-double last_time;
-int frames;
 
+int frames;
+double prev_time;
+
+/* Display FPS in window title string */
 void showFPS(GLFWwindow *window)
 {
 	double current_time = glfwGetTime();
-	double delta = current_time - last_time;
+	double delta = current_time - prev_time;
 
 	frames++;
 	if (delta >= 1.0)
@@ -218,9 +220,10 @@ void showFPS(GLFWwindow *window)
 		glfwSetWindowTitle(window, ss.str().c_str());
 
 		frames = 0;
-		last_time = current_time;
+		prev_time = current_time;
 	}
 }
+
 
 int main()
 {
@@ -236,14 +239,12 @@ int main()
 
     gladLoadGLLoader((GLADloadproc) glfwGetProcAddress);
 
-	initProgram();
-	initModel();
+	loadProgram();
+	loadModel();
 	loadTexture();
 
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LESS);
-
-	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
 	glfwSwapInterval(1);
 	while (!glfwWindowShouldClose(window))
@@ -253,7 +254,7 @@ int main()
         glClearColor(0.529f, 0.808f, 0.98f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		handleInput();
+		updateAnimation();
 		drawModel();
 
         glfwSwapBuffers(window);
